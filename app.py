@@ -8,33 +8,15 @@ from openai.types.beta import Assistant
 from openai.types.beta.thread import Thread
 from openai import OpenAI
 
+load_dotenv(find_dotenv())
 
+client = OpenAI()
 
-st.set_page_config(
-    page_icon="📈",
-    page_title="AI financial_analyst",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
-
-api_key = st.secrets["OPENAI_API_KEY"]
-
-def initialize_openai_client(api_key):    
-    return openai.OpenAI(api_key=api_key)
-
-
-
-def initialize_openai_client(api_key):    
-    return openai.OpenAI(api_key=api_key)
-
-client: openai.OpenAI = openai.OpenAI(api_key=api_key)
-
-
-assistant: Assistant = client.beta.assistants.create(
-    name = "Finance Insight Analyst",
-    instructions = "You are a helpful financial analyst expert and, focusing on management discussions and financial results. help people learn about financial needs and guid them towards fincial literacy.",
-    tools = [{"type":"code_interpreter"}, {"type": "retrieval"}],
-    model = "gpt-3.5-turbo-1106"
+assistant = client.beta.assistants.create(
+    name="Finance Insight Analyst",
+    instructions="You are a helpful financial analyst expert, focusing on management discussions and financial results. Help people learn about financial needs and guide them toward financial literacy.",
+    tools=[{"type": "code_interpreter"}, {"type": "retrieval"}],
+    model="gpt-3.5-turbo-1106"
 )
 
 def show_json(obj):
@@ -43,7 +25,7 @@ def show_json(obj):
 show_json(assistant)
 
 def submit_message(assistant_id, thread, user_message):
-    client.beta.threads.messages.create(
+    message = client.beta.threads.messages.create(
         thread_id=thread.id, role="user", content=user_message
     )
 
@@ -64,50 +46,28 @@ def wait_on_run(run, thread):
 def get_response(thread):
     return client.beta.threads.messages.list(thread_id=thread.id, order="asc")
 
-
-# Creating a Thread for Conversation
-thread: Thread = client.beta.threads.create()
-
 def pretty_print(messages):
-    responses = []
-    for m in messages:
-        if m.role == "assistant":
-            responses.append(m.content[0].text.value)
-    return "\n".join(responses)
+    responses = [m.content[0].text.value for m in messages if m.role == 'assistant']
+    return '\n'.join(responses)
 
+st.set_page_config(
+    page_icon="📈",
+    page_title="AI Financial Analyst",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
+st.header('Financial AI Analyst')
+st.subheader("Ask a financial question and receive tailored advice.")
 
-st.sidebar.title("Configuration")
-entered_api_key = st.sidebar.text_input("Enter your OpenAI API key", type="password")
+user_query = st.text_input("Enter your financial query here:", key='user_input', max_chars=250)
 
-client = None
-
-
-if entered_api_key:
-    with st.spinner('Initializing OpenAI Client...'):
-        client = initialize_openai_client(entered_api_key)
-
-st.header('Financial Ai Analyst')
-st.markdown("""
-        Enter your financial question and let our AI empower you with personalized financial strategies for success.
-    """)
-
-user_query = st.text_input("Enter your financial query:")
-
-if st.button('Explore Financial Guidance') :
-        if  client:
-            with st.spinner('Fetching your financial insights...'):
-                thread = client.beta.threads.create()
-                run = submit_message(assistant.id, thread, user_query)
-                run = wait_on_run(run, thread)
-                response_messages = get_response(thread)
-                response = pretty_print(response_messages)
-                st.text_area("Response:", value=response, height=300)
-        else:
-            st.warning("Kindly input your OpenAi key on the sidebar to unlock access to the application's features")
-
-                
-                        
-    
-
-
+if user_query:
+    if client:
+        with st.spinner('Fetching your financial insights...'):
+            thread = client.beta.threads.create()
+            run = submit_message(assistant.id, thread, user_query)
+            run = wait_on_run(run, thread)
+            response_messages = get_response(thread)
+            response = pretty_print(response_messages)
+            st.write(f'**Response:**\n{response}')
